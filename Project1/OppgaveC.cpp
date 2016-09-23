@@ -37,7 +37,7 @@ int main(int argc, char *argv[]){
     // Loop over powers of 10
     for (int i = 1; i <= exponent; i++){
 
-      int  n = (int) pow(10.0,i);
+      int n = (int) pow(10.0,i);
 
       // Declare new file name
       string fileout = filename;
@@ -53,10 +53,6 @@ int main(int argc, char *argv[]){
       double hh = h*h;
 
       // Set up arrays
-      //Matrix elements
-      double *b = new double[n+2];
-      double *c = new double[n+2];
-      double *a = new double[n+2];
 
       //Right hand side vector
       double *k = new double[n+2];
@@ -72,45 +68,43 @@ int main(int argc, char *argv[]){
        
 
       // Initializing values on the diagonal
-      b[0] = b[n] = 2.0;
-      a[0] = c[n] = -1.0;
 
 
       //Boundary points
-      u[0] = u[n] = 0.0;
+      
 
 
-      //Values one the diagonal and subdiagonal of matrix
-      for (int i = 1; i < n+2; i++) {
-          b[i] = 2.0;
-          c[i-1] = -1.0;
-          a[i] = -1.0;
+      float a = -1.0;
+      float b = 2.0;
+      float c = -1.0;
+      float ac = 1.0;
 
-      }
+      
 
       for (int i = 0; i < n+2; i++){
           x[i] = i*h;
           k[i] = hh*f(x[i]);
       }
       //Temporary matrix values
-      ktilde[1] = k[1];
-      btilde[1] = b[1];
+      ktilde[1] = k[i];
+      btilde[1] = b;
 
       //timer
        clock_t start, finish;
        start = clock();
+       
       // Forward substitution
       for (int i = 2; i <= n ; i++) {
-          btilde[i] = b[i] - c[i-1]*a[i]/btilde[i-1];
-          ktilde[i] = k[i] - ktilde[i-1]*a[i]/btilde[i-1];
+          btilde[i] = b - 1.0/btilde[i-1];
+          ktilde[i] = k[i] + ktilde[i-1]/btilde[i-1];
       }
 
       // Backward substitution
       u[n] = ktilde[n]/btilde[n];
       
 
-      for (int i = n-1; i > 0; i--) {
-          u[i] = (ktilde[i]-c[i]*u[i+1])/btilde[i];
+      for (int i = n-1; i >= 0; i--) {
+          u[i] = (ktilde[i]+u[i+1])/btilde[i];
       }
 
       finish = clock();
@@ -139,7 +133,7 @@ int main(int argc, char *argv[]){
          cout << "Maximum Error: " << max << endl << endl;
 
       ofile.close();
-      delete [] x; delete [] a; delete [] b; delete [] c; delete [] btilde; delete [] ktilde; delete [] u; delete [] k; delete [] err;
+      delete [] x; delete [] btilde; delete [] ktilde; delete [] u; delete [] k; delete [] err;
 
 
 }
