@@ -49,74 +49,66 @@ int main(int argc, char *argv[]){
       fileout.append(argument);
 
       //Set steplength h
-      double h = 1.0/(n+1);
+      double h = 1.0/(n);
       double hh = h*h;
 
       // Set up arrays
       //Matrix elements
-      double *b = new double[n+2];
-      double *c = new double[n+2];
-      double *a = new double[n+2];
+      clock_t start, finish;
+      start = clock();
+      int a = -1; int c = -1; int b = 2; int ac = 1;
 
       //Right hand side vector
-      double *k = new double[n+2];
-      double *x = new double[n+2];
+      double *k = new double[n];
+      double *x = new double[n];
 
       //Temporary matrices
-       double *ktilde = new double[n+2];
-       double *btilde = new double[n+2];
+       double *ktilde = new double[n];
+       double *btilde = new double[n];
 
        //Solution
-       double *u = new double[n+2];
+       double *u = new double[n];
 
-       //timer
-       clock_t start, finish;
-       start = clock();
 
-      // Initializing values on the diagonal
-      b[0] = b[n] = 2.0;
-      a[0] = c[n] = -1.0;
 
 
       //Boundary points
-      u[0] = u[n] = 0.0;
+      u[0] = u[n-1] = 0.0;
 
 
-      //Values one the diagonal and subdiagonal of matrix
-      for (int i = 1; i < n+2; i++) {
-          b[i] = 2.0;
-          c[i-1] = -1.0;
-          a[i] = -1.0;
 
-      }
 
-      for (int i = 0; i < n+2; i++){
+
+      for (int i = 0; i <= n-1; i++){
           x[i] = i*h;
           k[i] = hh*f(x[i]);
       }
       //Temporary matrix values
-      ktilde[1] = k[1];
-      btilde[1] = b[1];
-
-
+      ktilde[0] = k[0];
+      btilde[0] = b;
       // Forward substitution
-      for (int i = 2; i <= n ; i++) {
-          btilde[i] = b[i] - c[i-1]*a[i]/btilde[i-1];
-          ktilde[i] = k[i] - ktilde[i-1]*a[i]/btilde[i-1];
+      for (int i = 1; i < n; i++) {
+          btilde[i] = b - ac/btilde[i-1];
+          ktilde[i] = k[i] - ktilde[i-1]*a/btilde[i-1];
       }
 
       // Backward substitution
-      u[n] = ktilde[n]/btilde[n];
-      
+      u[n-1] = ktilde[n-1]/btilde[n-1];
 
-      for (int i = n-1; i > 0; i--) {
-          u[i] = (ktilde[i]-c[i]*u[i+1])/btilde[i];
+      for (int i = n-2; i > 0; i--) {
+          u[i] = (ktilde[i]-c*u[i+1])/btilde[i];
       }
 
       finish = clock();
       cout << "n = " << n << endl;
-      cout<< "Time elapsed: "<< (float(finish) - float(start))/CLOCKS_PER_SEC << endl;
-      
+      cout<< "Time elapsed C: "<<(float(finish) - float(start))/CLOCKS_PER_SEC << endl;
+      //cout <<"u2 = "<< u[2] << endl;
+      //cout << "exact = "<< exact(x[2]) << endl;
+      //cout << "ktilde =  "<< ktilde[2] << endl;
+      //cout << "u3 = " << u[3] << endl;
+      //cout << "btilde = " << btilde[2] <<endl;
+      //cout << endl;
+
       ofile.open(fileout);
       ofile << setiosflags(ios::showpoint | ios::uppercase);
           //      ofile << "       x:             approx:          exact:       relative error" << endl;
@@ -139,7 +131,7 @@ int main(int argc, char *argv[]){
          cout << "Maximum Error: " << max << endl << endl;
 
       ofile.close();
-      delete [] x; delete [] a; delete [] b; delete [] c; delete [] btilde; delete [] ktilde; delete [] u; delete [] k; delete [] err;
+      delete [] x; delete [] btilde; delete [] ktilde; delete [] u; delete [] k; delete [] err;
 
 
 }
