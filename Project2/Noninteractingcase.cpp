@@ -6,6 +6,7 @@
 #include <cmath>
 #include <string>
 #include <fstream>
+#include <sstream>
 using namespace std;
 
 // object for output files
@@ -21,7 +22,34 @@ void printMatrix(double **A, int N) {
 		cout << endl;
 	}
 }
+void printVector(double *v, int N) {
+	for (int i=0; i < N; i++) {
+			cout << setw(20) << v[i] << endl;
+	}
+}
 
+void MakeEigenvectorArray(double ** Matrix, int N, double *v){
+	
+	for(int j = 0; j < N; j++){
+		
+		v[j] = Matrix[j][j];
+		
+		}
+	
+
+	
+}
+void fileMatrix(double **A, int N, double *k){
+	for (int i=0; i < N; i++) {
+		ofile << setw(20) << k[i];
+		for (int j = 0; j < N; ++j) {
+			ofile  << setw(20) << A[i][j] << " ";
+		}
+		ofile << endl;
+	}
+
+}
+//Rotating the matrix 
 void rotate(double ** A, double ** R, int k, int l, int N)
 {
 		double s, c;
@@ -69,7 +97,7 @@ void rotate(double ** A, double ** R, int k, int l, int N)
 		}
 		return;
 	}
-
+//Finding the bigges off diagonal element
 double maxoffdiagmoffokka(double ** A, int *k, int *l, int N){
 	double max = 0.0;
 
@@ -85,7 +113,7 @@ double maxoffdiagmoffokka(double ** A, int *k, int *l, int N){
 	return max;
 }	
 
-int Jacobimoffokka(double ** A, double ** R, int N){
+int Jacobimoffokka(double ** A, double ** R, int N, double rho_max, double omega){
 	for(int i = 0; i < N; ++i){
 		R[i] = new double[N];
 		for (int j = 0; j < N; ++j){
@@ -96,15 +124,13 @@ int Jacobimoffokka(double ** A, double ** R, int N){
 			
 	}
 
-	double rho_max = 5.0;
 	double h = rho_max/ (N + 1);
-
 	for(int i=0;i<N; ++i){
 		A[i] = new double[N];
 		double rho = (i+1)*h; 
-
+		double V = omega*omega*rho*rho;
 		for(int j = 0; j < N; j++){
-			if(i == j){A[i][j] = 2.0/(h*h) + rho*rho;}
+			if(i == j){A[i][j] = 2.0/(h*h) + V;}
 			else if(i == j+1 || i+1 == j){A[i][j] = -1.0/(h*h);}
 			else{A[i][j] = 0.0;}
 		} 
@@ -127,44 +153,12 @@ int Jacobimoffokka(double ** A, double ** R, int N){
 
 
 }
-void SortArray(double v[], int N){
-	bool exchanges;
-	do{
-		exchanges = false;
-		for(int i = 0; i<N-1; i++){
-			if(v[i] > v[i+1]){
-				double temp = v[i]; v[i] = v[i+1]; v[i+1]= temp;
-				exchanges = true;
-			}
-		}
-	}
-	while(exchanges);
-	for(int j = 0; j < 3; j++){
-		cout << v[j] << endl;
-		}
-}
-
-void MakeEigenvectorArray(double ** Matrix, int N){
-	double *k;
-	k = new double[N];
-	
-	for(int j = 0; j < N; j++){
-		
-		k[j] = Matrix[j][j];
-		
-		}
-	SortArray(k, N);
-	
-}
-
-
-
-
 
 
 int main(int numberOfArguments, char **arguments) {
-	vector<int> N = {190};
-
+	vector<int> N = {250};
+	vector<double> rho_max = {7.0, 45.0};
+	vector<double> omega = {0.01, 0.5, 1.0, 5.0};
 	string filename;
 
 	if(numberOfArguments <= 1){
@@ -174,47 +168,54 @@ int main(int numberOfArguments, char **arguments) {
 	else{filename = arguments[1];
 		
 		}
-	ofile.open(filename);
-	ofile << setiosflags(ios::showpoint | ios::uppercase);
-	for(int i = 0; i < N.size(); i++){
-		
-		double ** B;
-		B = new double*[N[i]];
-		double ** R;
-		R = new double*[N[i]];
+	
+	for(int l = 0; l<omega.size(); l++){
 
-		/*
-		double ** T;
-		T = new double*[N;
-		for (int i = 0; i<N; i++){
-			T[i] = new double[N];
+		ostringstream convert;
+		convert << l+1;
+		string penis = convert.str();
+		string newfilename = filename + "W" + penis;
+		
+		ofile.open(newfilename);
+		ofile << setiosflags(ios::showpoint | ios::uppercase);
+		if(l == 0){
+		
+			for(int i = 0; i < N.size(); i++){
+				
+				double ** B = new double*[N[i]];
+				double ** R = new double*[N[i]];
+				double *v = new double[N[i]];
+
+				int iterations = Jacobimoffokka(B, R, N[i], rho_max[1], omega[l]);
+				MakeEigenvectorArray(B, N[i], v);
+				fileMatrix(R, N[i], v);
+				
+			    
+
+			    delete [] B; delete [] R; delete [] v;
+			    
+			}
 		}
-		T[0][0] = 3.0;
-		T[0][1] = 2.0;
-		T[0][2] = 4.0;
-		T[1][0] = 2.0;
-		T[1][1] = 0.0;
-		T[1][2] = 2.0;
-		T[2][0] = 4.0;
-		T[2][1] = 2.0;
-		T[2][2] = 3.0;
-		*/
-		
-		int iterations = Jacobimoffokka(B, R, N[i]);
+		else{ 
+			for(int i = 0; i < N.size(); i++){
+				
+				double ** B = new double*[N[i]];
+				double ** R = new double*[N[i]];
+				double *v = new double[N[i]];
+
+				int iterations = Jacobimoffokka(B, R, N[i], rho_max[0], omega[l]);
+				MakeEigenvectorArray(B, N[i], v);
+				fileMatrix(R, N[i], v);
+				
+			    
+
+			    delete [] B; delete [] R; delete [] v;
 
 
-		MakeEigenvectorArray(B, N[i]);
-	    
-	    ofile << setw(10) << N[i];
-	    ofile << setw(10) << iterations;
-	    
-
-	    
-	    
-	    delete [] B; delete [] R;
-	    
-	}
+			}
+		}	
 	ofile.close();
+	}
 	return 0;
 }
 
