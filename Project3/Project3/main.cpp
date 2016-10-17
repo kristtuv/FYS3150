@@ -5,6 +5,7 @@
 #include "celestialbody.h"
 #include "solarsystem.h"
 #include "euler.h"
+#include "verlet.h"
 using namespace std;
 
 int main()
@@ -18,17 +19,27 @@ int main()
     for(int i = 0; i < bodies.size(); i++)
     {
     CelestialBody &body = bodies[i];
-    cout << "Position of this object is " << body.position << endl;
+    //cout << "Position of this object is " << body.position << endl;
     }
-
     double dt = 0.0001;
-    Euler integrator(dt);
+
+    /*
+
+    Euler integrateEuler(dt);
     for(int timestep=0; timestep<numTimesteps; timestep++) {
-       integrator.integrateOneStep(Solar);
+       integrateEuler.integrateOneStep(Solar);
        cout << earth.position << endl;
 
-       Solar.writeToFile("positions.xyz");
+       //Solar.writeToFile("positions.xyz");
    }
+   */
+    verlet integrateVerlet(dt);
+    for(int timestep = 0; timestep< numTimesteps; timestep++)
+    {
+        integrateVerlet.integrateOneStep(Solar);
+        cout << earth.position << endl;
+
+    }
 
     cout << "I just created my first solar system that has " << Solar.bodies().size() << " objects." << endl;
     //cout << earth.force << endl;
