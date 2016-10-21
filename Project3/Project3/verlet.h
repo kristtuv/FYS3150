@@ -8,6 +8,7 @@ public:
     double m_dt;
     verlet(double dt);
     void integrateOneStep(class solarsystem &system);
+    void integrateOneStepRelativisticForce(class solarsystem &system);
 };
 
 #endif // VERLET_H

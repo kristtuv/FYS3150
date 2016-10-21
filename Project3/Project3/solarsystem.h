@@ -15,14 +15,16 @@ public:
     CelestialBody& createCelestialBody(vec3 position, vec3 velocity, double mass);
 
     void CalculateForcesandEnergy();
+    void CalculateForcesandEnergyRelativistic();
     int numberofbodies() const;
 
     double totalEnergy() const;
     double potentialEnergy() const;
     double kineticEnergy() const;
     void writeToFile(string filename);
+    void PrintToFile(string filename, CelestialBody &body);
 
-    vec3 angularmomentum() const;
+    vec3 angularmomentum();
     vector<CelestialBody> &bodies();
 
 private:

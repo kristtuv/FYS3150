@@ -28,3 +28,20 @@ void verlet::integrateOneStep(class solarsystem &system)
 
     }
 }
+void verlet::integrateOneStepRelativisticForce(class solarsystem &system)
+{
+
+    system.CalculateForcesandEnergyRelativistic();
+
+
+    for(CelestialBody &body : system.bodies())
+    {
+        body.position += m_dt*body.velocity + m_dt*m_dt/2 *body.force/body.mass;
+        vec3 acceleration = body.force/body.mass;
+        system.CalculateForcesandEnergyRelativistic();
+
+        body.velocity += m_dt/2*(body.force/body.mass + acceleration);
+
+
+    }
+}
