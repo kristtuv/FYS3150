@@ -1,0 +1,367 @@
+\documentclass[a4paper, norsk, 12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{babel, textcomp, color, amsmath, amssymb, tikz, subfig, float}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage[export]{adjustbox}
+\usepackage[]{esint}
+\usepackage{ragged2e}
+
+
+
+\begin{document}
+
+
+\author{Kristian Tuv}
+\title{Building a model for the solar system using ordinary differential equations}
+\maketitle
+Github repository: https://github.com/kristtuv/FYS3150/tree/master/Project3\\
+
+\section*{Abstract}
+We make a model of the solarsystem using Newton's law of gravity and the velocity verlet algorithm.\\
+We find that Newtons laws holds up to scrutiny and compared to the Euler forward algorithm, the velocity verlet algorithm is very precise.
+\section*{Introduction}
+The aim of this project is to develop a code for simulating the solar system using the velocity Verlet
+algorithm and verifying Newtons laws and the laws of conservation. Newtonian force will be used in the calculations, but we will also take a closer look at the perihelion precession of Mercury, comparing the the calculations of Newtonian force and general relativity.\\
+\\
+In the first part we will limit ourselves (in order to test the algorithm) 
+to a hypothetical solar system
+with the Earth orbiting around the sun, in a circular orbit. We will run this calculation with the velocity Verlet algorithm and compare it to the Euler forward algorithm.\\
+\\
+Next, the program will be extended to a three-body problem by adding Jupiter into the mix. The goal is the see how much Jupiter alters earths orbit and test the stability of the verlet solver over different timesteps. We will look at two different cases. One with the system's mass center in the middle of the sun, and the other with the real mass center of the three-body problem.\\
+\\
+Finally the program is extending to a full solar system using initial positions and velocities provided by NASA.
+
+
+\section*{Methods}
+\subsection*{Mathematical theory}
+
+\begin{itemize}
+
+\item Newtons law of gravity
+The only force in this problem is the Newtonian gravitational force given by
+$$F_{G} = \frac{GM_{1}M_{2}}{r^{2}}$$
+Where r is the distance between the two objects and $M_{1}$ and $M_{2}$ is the masses of the objects.
+G is the gravitational constant: $G = 6.67408 \times10^{-11} m^{3}kg^{-1}s^{-2}$. To make the calculations easier it is common to use astronomical units(AU) to rewrite the equations. AU is the distance between the earth and the sun $AU = 1.5 \times 10^{11} $m.\\
+If we assume the earth goes in a circular orbit around the sun, we obtain the equations
+\[
+F_G= \frac{M_{\mathrm{Earth}}v^2}{r}=\frac{GM_{\odot}M_{\mathrm{Earth}}}{r^2},
+\]
+where $v$ is the velocity of Earth. 
+The latter equation can be used to show that
+\[
+v^2r=GM_{\odot}=4\pi^2\mathrm{AU}^3/\mathrm{yr}^2.
+\]
+
+Expressing G in AU/year, G becomes: $4\pi^{2} AU^3/yr^2 M_{\odot}^{-1}$, $M_{\odot}^{-1}$ is the mass of the sun. In this project we will set the mass of the sun to 1, giving $G = 4\pi^2$ 
+with units $\frac{AU^{3}}{ yr^{2} kg}$  in all our calculations.\\
+\\
+We make the assumption that all the orbits in this problem is coplannar in the xy-plane. Using Newton's second law of motion we get the eqations
+\[
+\frac{d^2x}{dt^2}=\frac{F_{G,x}}{M_{\mathrm{Earth}}},
+\]
+and 
+\[
+\frac{d^2y}{dt^2}=\frac{F_{G,y}}{M_{\mathrm{Earth}}},
+\]
+where $F_{G,x}$ and $F_{G,y}$ are the $x$ and $y$ components of the gravitational force.\\
+\\
+\item Center of mass\\
+We define the center of mass, R, of a system as a weighted average:
+$$\mathbf{R} =\frac{\sum_{i = 1}^{n} m_{i}\mathbf{r}_{i}}{\sum_{i=1}^{n}m_{i}} $$ 
+Where $m_{i}$ is the masses in the system and $\mathbf{r}_{i}$ is the position of each particle
+
+\item Momentum\\
+The total momentum of a system is defined as the sum of the individual momenta:\\
+$$\mathbf{P} = \sum_{i = 1}^{n} \mathbf{p}_{i}$$
+
+\item Angular momentum
+The total angular momentum of a system is defined as the sum the angular momentum of the individual particles:\\
+$$\mathbf{L} = \sum_{i = 1}^{n}m_{i}(\mathbf{r}_{i} \times \mathbf{v}_{i})$$
+\end{itemize}
+\subsection*{Algotihms}
+\begin{itemize}
+\item Euler
+\begin{align*}
+\dot{x}(t) &= v(t)\\
+\ddot{x}(t) &= \dot{v}(t) = F(x(t))/m
+\end{align*}
+We use Taylor expansions:
+$$x(t + h) = x(t) + h\dot{x}(t) +  O(h^2)$$
+Using $v(t)$ to elimate $\dot{x}(t)$ gives
+$$x(t + h) = x(t) + hv(t) + O(h^{2})$$
+\\
+$$v(t + h) = v(t) + h\dot{x}(t) + O(h^{2})$$
+Using $F/m$ to eliminate $\dot{x}(t)$ gives 
+$$v(t + h) = v(t) + h\frac{F(x(t)}{m} + O(h^{2})$$
+\\
+\\
+\underline{Implementing the Euler forward algorithm}\\
+\\
+\\
+Given $x_k$ and $v_k$ and an expression for $F(x)$\\
+Step 1: Evaluate $F(x_{k})$ \\
+Step 2: Evaluate $x_{k+1} = x_{k} + hv_k$\\
+Step 3: Evaluate $v_{k+1} = v_k + hF(x_k)/m$\\
+\\
+\\
+\\
+\item Verlet
+\begin{align*}
+\dot{x}(t) &= v(t)\\
+\ddot{x}(t) &= \dot{v}(t) = F(x(t))/m
+\end{align*}
+We use Taylor expansions:
+$$x(t + h) = x(t) + h\dot{x}(t) + \frac{h^2}{2}\ddot{x}(t) + O(h^3)$$
+Using $v(t)$ to elimate $\dot{x}(t)$ and $\frac{F}{m}$ to eliminate $\ddot{x}$ gives
+$$x(t + h) = x(t) + hv(t) + \frac{h^2}{2}\frac{F(x(t))}{m} + O(h^3)$$
+Expanding the second function $v(t + h)$:
+$$v(t + h) = v(t) + h\dot{v}(t) + \frac{h^2}{2} \ddot{v}(t) + O(h^3)$$
+
+We can use $\frac{F}{m}$ to eliminate $\dot{v}$, but we need to develop an expression for $\ddot{v}$ in terms of known quantities. This can be done by expanding $\dot{v}(t+h)$
+$$\dot{v}(t+h) = \dot{v}(t) + h\ddot{v}(t) + O(h^2)$$
+It is enough to go up to order $h^2$ here because we only need an approximation that is good to order $h^3$ to the quantity $\frac{h^2}{2}\ddot{v}(t)$
+Solving for $\frac{h^2}{2}\ddot{v}(t)$ and substituting everyting into the expression for $v(t+h)$ gives
+$$v(t + h) = v(t) + \frac{h}{2m}(F(x(t+h)) + F(x(t))) + O(h^3)$$
+\\
+\\
+\underline{Implementing the velocity verlet algorithm}
+
+Given $x_k$ and $v_k$ and an expression for $F(x)$\\
+Step 1: Evaluate $F(x_{k})$ \\
+Step 2: Calcualte $x_{k + 1} = x_{k} + h v_{k}  + h^2 F(x_{k})/2m$ \\
+Step 3: Evaluate $F(x_{k + 1})$ \\
+Step 4: Calcualte $v_{k + 1} = v_{k} + \frac{h}{2m}(F(x_{k + 1}) + F(x_{k}))$\\
+
+\item Test of Algorithm\\
+- Because the solarsystem can be considered to be an isolated system we know that the law of conservation of     energy applies. In the case of the circular orbit of the earth, both the potential and kinetic energy should be conserved.\\
+- In addition there is no external torque acting upon the system. In other words the angular momentum should be conserved.\\
+-We shall try to use our program to calculate the escape velocity of the earth.\\
+Because the energy in space must be conserved, the total energy when the earth has left the solarsystem must be the same as at time $t_0$
+\begin{align*}
+&E_0 = E_1\\
+\rightarrow &\underbrace{\frac{1}{2}mv^2}_{Kinetic\, energy} - \underbrace{\frac{GmM}{r}}_{Potential \, energy} = 0 + 0\\
+\rightarrow &v = \sqrt{\frac{2GM}{r}}
+\end{align*}
+With units $G = 4\pi^{2}$ and $r = 1 $ AU, this gives
+$$v = 2\pi \sqrt{2}$$
+\end{itemize}
+\section*{Results}
+\subsection*{Two-Body problem}
+Results from calculating the orbit of the earth, giving it an initial speed of $2\pi$ to make it go in a circle around the sun.\\
+\\
+As we can see, the velocity verlet method gives å pretty good approximation to Earth's orbit already at 250 timesteps per year. The Euler method however is still pretty imprecise at 25 000 timesteps per year.
+
+\begin{figure}[H]
+\centering
+\subfloat[250 timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/EarthandSun1000.png}}
+\subfloat[2500 timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/EarthandSun10000.png}}\\
+\subfloat[12500 timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/EarthandSun50000.png}}
+\subfloat[25000 timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/EarthandSun100000.png}}\\
+\subfloat[250000 timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/EarthandSun1000000.png}}
+\subfloat[1250000 timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/EarthandSun5000000.png}}
+\caption{Plots of the earth using the velocity verlet method and the euler method over four years.}
+\end{figure}
+
+
+\newpage
+
+From the derivation of the Euler algorithm, we see that the error goes as $h^2$ and the verlet algorithm has a an error that goes as $h^3$. \\
+
+As we can see, the error for the Euler method rises quite quickly at low timesteps.\footnote{  The oscillation in the error is not due to nummerical error.To make the calculation of the error trivial, the exact distance to the sun at all times was set to 1 AU, however because of the earths tiny gravitational pull on the sun, the sun is also in movement and the plot of the earth is therefor not a perfect circle with radius 1 AU.}\\
+ In the plot of the Earth, we see that the precision of the verlet algorithm is much better than that of the Euler algorithm. However, if we consider the number of FLOPs for each algorithm, the euler algorithm is quite a bit faster than verlet. A timing of the algorithms with $N = 50 000 000$ timesteps gave these results:\\
+ \\
+ \\
+\begin{tabular}{| l | l | l | }
+\hline
+Algorithm & Flops & Time\\
+\hline
+Verlet & 13N & 40 s\\
+Euler & 5N & 16 s\\
+\hline
+\end{tabular}
+\\
+\\
+\\But considering we need to use a interval almost 1000 times smaller in the Euler algorithm to get the same precision as in the verlet algorithm, verlet is by far the best choice.\\
+\\
+
+\begin{figure}[H]
+\centering
+\subfloat[250 timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Relativeerror1000.png}}
+\subfloat[2500 timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Relativeerror10000.png}}\\
+\subfloat[12500 timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Relativeerror50000.png}}
+\subfloat[25000 timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Relativeerror100000.png}}\\
+\subfloat[250000 timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Relativeerror1000000.png}}
+\caption{Plots of the relative error using the velocity verlet method and the euler method.}
+\end{figure}
+
+
+\newpage
+
+\underline{Testing the velocity verlet algorithm}\\
+\\
+To make sure our algorithm work, we set up a couple of tests that we know must be true from the laws of physics.
+
+
+\begin{figure}[H]
+
+In a circular orbit both the potential energy and the kinetic energy should be conserved.\\
+In addition, the angular momentum should be conserved when there is noe external torque acting on the object. As we can see from figure(3), all of these quantites are conserved.\\
+
+\centering
+\includegraphics[width=0.8\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Conservation.png}
+\caption{Plots showing the the Potential energy, kinetic energy and angular momentum is conserved. The fluctuations happen because of machine-error.}
+\end{figure}
+
+
+
+\begin{figure}[H]
+
+We also tried finding the escape velocity of the earth by trial and error. We know that the escape velocity with units $G = 4\pi^{2}$ and $r = 1 $ AU should be
+$$v_{0} = 2\pi \sqrt{2} \simeq 8.8857658763167322$$\\
+As we can see the velocity is clearly high enough to make the earth escape from the sun.\\
+
+
+\centering
+\subfloat{\includegraphics[width=0.8\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/exact}}
+\caption{The position of the earth when using an exact escape velocity}
+
+\end{figure}
+
+
+ 
+\begin{figure}[H]
+
+ We also tried lowering the velocity a little bit, to see if the earth would fall back to the sun.\\
+ By just truncating a few decimals, the speed was low enough to make the earth fall back towards the sun. This indicates our algorithm is quite exact.\\
+\centering
+\subfloat{\includegraphics[width=0.8\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/8885}}
+\caption{The position of the earth when using a velocity $v_{0} = 8.885$}
+
+
+
+\end{figure}
+
+\subsection*{Three-Body problem}
+
+\underline{Earth and Jupiter motion, center of mass in the middle of the sun}\\
+\\
+To test the stability of the verlet method the program ran over several different timesteps up to 1 0000 steps per earth year. For the cases where Jupiter is set to it's real mass and 10 times the real mass, the verlet solver lookes to be pretty stable already at 100 timesteps/year. When the mass is increased to 1000 times the real mass however, the results for different timesteps differ quite a bit from each other.\\
+When the mass is encreased to 1000 times the real mass, the center of mass should be at about 2. 6 AU (Half the distance between the Sun and Jupiter), but we keep it in the center of the sun. Hence we do not have a stable system, and the smallest misscalculations will make the system go wild.\\
+\newpage
+\begin{figure}[H]
+\justifying
+
+
+\centering
+
+\subfloat[$10^{1}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1JE1000.png}}
+\subfloat[$10^{2}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1JE10000.png}}\\
+\subfloat[$5*10^{2}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1JE50000.png}}
+\subfloat[$10^{3}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1JE100000.png}}\\
+\subfloat[$10^{4}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1JE1000000.png}}
+\caption{Plots of the motion of Earth and Jupiter with Jupiter's mass set to the real mass}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+
+\subfloat[$10^{1}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass10JE1000.png}}
+\subfloat[$10^{2}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass10JE10000.png}}\\
+\subfloat[$5*10^{2}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass10JE50000.png}}
+\subfloat[$10^{3}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass10JE100000.png}}\\
+\subfloat[$10^{4}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass10JE1000000.png}}
+\caption{Plots of the motion of Earth and Jupiter with Jupiter's mass set to 10 x the real mass}
+\end{figure}
+
+
+\begin{figure}[H]
+\centering
+
+\subfloat[$10^{1}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1000JE1000.png}}
+\subfloat[$10^{2}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1000JE10000.png}}\\
+\subfloat[$5*10^{2}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1000JE50000.png}}
+\subfloat[$10^{3}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1000JE100000.png}}\\
+\subfloat[$10^{4}$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1000JE1000000.png}}
+\caption{Plots of the motion of Earth and Jupiter with Jupiter's mass set to 1000 x the real mass. This is very close to having two suns in the solarsystem}
+\end{figure}
+\newpage
+\underline{Earth and Jupiter motion, center of mass is moved to the real center}\\
+\\
+In figure 9, 10 and 11 we see that moving the center of mass to the real center, the verlet solver quickly stabelizes. Even at a 1000 times the real mass the verlet solver is already stable at about 500 steps per year and we can see that compared to the case where the center of mass was in the center of the Sun, Jupiter is now stable in the solarsystem and is not thrown out. Earth has also stabelized, but because this is only a still photo and not an animation, we do not know if at some point the Earth crashes into one of the two massive bodies.
+
+\begin{figure}[H]
+
+\centering
+
+\subfloat[$10^1$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1JRER1000.png}}
+\subfloat[$10^2$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1JRER10000.png}}\\
+\subfloat[$5*10^2$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1JRER50000.png}}
+\subfloat[$10^3$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1JRER100000.png}}\\
+\subfloat[$10^4$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1JRER1000000.png}}
+\caption{Plots of the motion of Earth and Jupiter with Jupiter's mass set to the real mass}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+
+\subfloat[$10^1$r timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass10JRER1000.png}}
+\subfloat[$10^2$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass10JRER10000.png}}\\
+\subfloat[$5*10^2$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass10JRER50000.png}}
+\subfloat[$10^3$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass10JRER100000.png}}\\
+\subfloat[$10^4$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass10JRER1000000.png}}
+\caption{Plots of the motion of Earth and Jupiter with Jupiter's mass set to 10 x the real mass}
+\end{figure}
+
+
+\begin{figure}[H]
+\centering
+
+\subfloat[$10^1$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1000JRER1000.png}}
+\subfloat[$10^2$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1000JRER10000.png}}\\
+\subfloat[$5*10^2$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1000JRER50000.png}}
+\subfloat[$10^3$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1000JRER100000.png}}\\
+\subfloat[$10^4$ timesteps/yr]{\includegraphics[width=0.5\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/Mass1000JRER1000000.png}}
+\caption{Plots of the motion of Earth and Jupiter with Jupiter's mass set to 1000 x the real mass. This is very close to having two suns in the solarsystem}
+\end{figure}
+\subsection*{Full solar system}
+
+\begin{figure}[H]
+The enitire solarsystem was run over 280 years with 3571 timesteps per earth year. In the plot of the four planets closest to the sun only one orbit around the sun is shown, to make the plots look better.\\
+As we can see in the plot of the 5 outer planets, pluto is closer to the sun than uranus in a small part of the orbit. We know this is true from observation, which indicates that our solar system looks to be acting like it should.
+
+\centering
+
+\subfloat[The four planets closest to the sun]{\includegraphics[width=0.8\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/MVEM.png}}\\
+\subfloat[The five planets farthest from the sun ]{\includegraphics[width=0.8\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Profile/JSUNP.png}}\\
+\
+\caption{The entire solarsystem}
+\end{figure}
+
+\subsection*{Mercury perihelion precession}
+The observed value of Mercury's perihelion precession when gravitational attraction from all the other planets are subtracted is 43 arc seconds\footnote{1 arc second is $\frac{\pi}{648 000}$ of a radian} per century.\\
+ In the plot we see that if we use Newtons law of gravity, we find no perihelion precession. \\The fluctuations in the plot is from machine error. Because one arcsecond is so small, the tiny errors in the calculations have quite a big effect on the precision of the data.\\ However, if we take a quick look at the plot, we see that the perihelion precession is close to the oberved value. In other words, this plot indicates that the law of general relativity most likely is the cause of the precession.\\
+
+\begin{figure}[H]
+\justifying
+
+\centering
+\includegraphics[width=0.8\textwidth]{/Users/Tuv/Documents/Programming/FYS3150/Project3/build-Project3-Desktop_Qt_5_7_0_clang_64bit-Release/PerihelionAngle.png}\\
+\
+\caption{Mercury's perihelion angle over 100 earth years (about 414 mercury years)}
+
+\end{figure}
+
+\section*{Conclusion}
+From the different simulations we have seen that even though the Euler algorithm is faster than the verlet algorithm, the verlet algorithm's precission is far greater than that of Euler's. In most cases the precission of the verlet algortihm will be sufficient at a stepsize of 1/500.\\
+For the calculations  we have used newtons law of gravity which gave us a good working model of the solar system. We also saw that the potential energy, kinetic energy and angular momentum was conserved in the case of a circular orbit, which was predicted by the laws of conservation\\
+ We found the escape velocity of the earth and saw it closely matched the predicted velocity from the conservation of total energy in the system.\\
+In addition we used general relativity to try and match Mercury's perihelion precession to the observed value. From our data, we found that general relativity was cleary better than Newtonian gravity, but because of lack of precission in our machine we could not make an absolute conclussion from the data.\\
+In conclusion: the laws of physics work.
+
+
+
+\end{document}

@@ -10,6 +10,7 @@
 #include "verlet.h"
 #include <fstream>
 #include <iomanip>
+#include "time.h"
 
 FullSolarSystem::FullSolarSystem()
 {
@@ -33,20 +34,25 @@ void FullSolarSystem::TwoBodySystemEuler(int NumTimeSteps, double dt)
     {CelestialBody &body = bodies[i];}
 
     ofstream ofile;
-
+    ofstream yofile;
 
 
     ofile.open(filename+"Euler");
-
+    yofile.open("EnergyAndMomentumEuler");
+    clock_t start, finish;
+    start =clock();
     Euler integrateEuler(dt);
     for(int timestep = 0; timestep< NumTimeSteps; timestep++)
     {
         integrateEuler.integrateOneStep(twoBodySystem);
         ofile << earth.position.x() << " " << earth.position.y() << " " << twoBodySystem.kineticEnergy() << " ";
         ofile << twoBodySystem.potentialEnergy() << " " << twoBodySystem.angularmomentum() << endl;
-
+        yofile << twoBodySystem.potentialEnergy() << " " << twoBodySystem.kineticEnergy();
+        yofile << " " << twoBodySystem.angularmomentum().length() << endl;
     }
+    finish =clock();
 
+    //cout << "Euler: " << " " << (finish - start)/CLOCKS_PER_SEC << endl;
     ofile.close();
 }
 
@@ -68,30 +74,45 @@ void FullSolarSystem::TwoBodySystemVerlet(int NumTimeSteps, double dt)
     {CelestialBody &body = bodies[i];}
 
     ofstream ofile;
-
+    ofstream yofile;
 
 
     ofile.open(filename+"Verlet");
-
+    yofile.open("EnergyAndMomentumVerlet");
+    clock_t start, finish;
+    start = clock();
     verlet integrateVerlet(dt);
     for(int timestep = 0; timestep< NumTimeSteps; timestep++)
     {
         integrateVerlet.integrateOneStep(twoBodySystem);
-        ofile << earth.position.x() << " " << earth.position.y() << " " << twoBodySystem.kineticEnergy() << " ";
-        ofile << twoBodySystem.potentialEnergy() << " " << twoBodySystem.angularmomentum() << endl;
+        ofile << earth.position.x() << " " << earth.position.y() << endl;
+        yofile << twoBodySystem.potentialEnergy() << " " << twoBodySystem.kineticEnergy();
+        yofile << " " << twoBodySystem.angularmomentum().length() << endl;
 
     }
 
+    finish = clock() ;
+    //cout << "Verlet: " << " " << ((finish - start)/CLOCKS_PER_SEC) << endl;
     ofile.close();
+    yofile.close();
 }
 void FullSolarSystem::ThreeBodySystemVerlet(int NumTimeSteps, double dt)
 {
     solarsystem threeBodySystem;
     vector<CelestialBody> &bodies = threeBodySystem.bodies();
 
-    CelestialBody &sun = threeBodySystem.createCelestialBody( vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0 ,0.0 ), 1.0 );
-    CelestialBody &jupiter = threeBodySystem.createCelestialBody(vec3(5.20, 0.0 ,0.0), vec3(0.0,  M_PI  , 0.0), 0.95e-3 );
-    CelestialBody &earth = threeBodySystem.createCelestialBody(vec3(1.0, 0.0, 0.0), vec3(0.0, 2*M_PI, 0.0), 3e-6);
+    CelestialBody &sun = threeBodySystem.createCelestialBody( vec3(0.0, 0.0, 0.0),
+                                                             vec3(0.0, 0.0 ,0.0 ),
+                                                             1.0 );
+
+
+    CelestialBody &earth = threeBodySystem.createCelestialBody(vec3(1.0, 0.0 , 0.0),
+                                                              vec3(0.0, 2*M_PI, 0.0),
+                                                              3e-6);
+
+    CelestialBody &jupiter = threeBodySystem.createCelestialBody( vec3(5.20, 0.0, 0.0),
+                                                                 vec3(0.0, 0.83*M_PI ,0.0 ),
+                                                                 1*0.95e-3);
 
     for(int i = 0; i < bodies.size(); i++)
     {CelestialBody &body = bodies[i];}
@@ -119,18 +140,29 @@ void FullSolarSystem::ThreeBodySystemRealCenterOfMass(int NumTimeSteps, double d
 {
     solarsystem threeBodySystem;
     vector<CelestialBody> &bodies = threeBodySystem.bodies();
-    CelestialBody &sun = threeBodySystem.createCelestialBody( vec3(3.567569132518468E-03, 3.402725585472963E-03, 0.0),
-                                                             vec3(-1.987631356370456E-06*365, 6.841214093898640E-06*365 ,0.0 ),
+    CelestialBody &sun = threeBodySystem.createCelestialBody( vec3(0.0, 0.0, 0.0),
+                                                             vec3(0.0, 0.0 ,0.0 ),
                                                              1.0 );
 
 
-    CelestialBody &earth = threeBodySystem.createCelestialBody(vec3(9.356619245372438E-01, 3.583403516829250E-01, 0.0),
-                                                              vec3(-6.405361360564236E-03*365, 1.601367683562308E-02*365, 0.0),
+    CelestialBody &earth = threeBodySystem.createCelestialBody(vec3(1.0, 0.0 , 0.0),
+                                                              vec3(0.0, 2*M_PI, 0.0),
                                                               3e-6);
 
-    CelestialBody &jupiter = threeBodySystem.createCelestialBody( vec3(-5.429091121847574, -4.464121857033960E-01, 0.0),
-                                                                 vec3(5.310921442239308E-04*365, -7.163232763813381E-03*365 ,0.0 ),
-                                                                 0.95e-3);
+    CelestialBody &jupiter = threeBodySystem.createCelestialBody( vec3(5.20, 0.0, 0.0),
+                                                                 vec3(0.0, 0.83*M_PI ,0.0 ),
+                                                                 1*0.95e-3);
+
+    vec3 MC = threeBodySystem.FindMassCenter();
+    vec3 momentum = threeBodySystem.momentum();
+    sun.position -=  MC;
+    earth.position -= MC;
+    jupiter.position -= MC;
+    sun.velocity += momentum;
+
+
+    //sun.position = vec3(sun.position.x()-MC, vec3(sun.position.y()-MC, vec3(sun.position.x()-MC)
+
 
     for(int i = 0; i < bodies.size(); i++)
     {CelestialBody &body = bodies[i];}
@@ -170,10 +202,10 @@ void FullSolarSystem::FullBodySystemVerlet(int NumTimeSteps, double dt)
         CelestialBody &sun = fullBodySystem.createCelestialBody( vec3(3.567569132518468E-03, 3.402725585472963E-03, 0.0),
                                                                  vec3(-1.987631356370456E-06*365, 6.841214093898640E-06*365 ,0.0 ),
                                                                  1.0 );
-        CelestialBody &mercury = fullBodySystem.createCelestialBody( vec3(-3.448088926082000E-01, 1.060250803722253E-01, 0.0),
+      CelestialBody &mercury = fullBodySystem.createCelestialBody( vec3(-3.448088926082000E-01, 1.060250803722253E-01, 0.0),
                                                                      vec3(-1.377317016029842E-02*365, -2.577724446766713E-02*365 ,0.0 ),
                                                                      1.2e-7 );
-        CelestialBody &venus = fullBodySystem.createCelestialBody( vec3(1.814959969646973E-01, -7.018747180931129E-01, 0.0),
+      CelestialBody &venus = fullBodySystem.createCelestialBody( vec3(1.814959969646973E-01, -7.018747180931129E-01, 0.0),
                                                                    vec3(1.947420769434422E-02*365, 4.885314858116717E-03*365 ,0.0 ),
                                                                    2.45e-6 );
         CelestialBody &earth = fullBodySystem.createCelestialBody(vec3(9.356619245372438E-01, 3.583403516829250E-01, 0.0),
@@ -197,18 +229,33 @@ void FullSolarSystem::FullBodySystemVerlet(int NumTimeSteps, double dt)
         CelestialBody &pluto = fullBodySystem.createCelestialBody( vec3(9.420766235048019, -3.181847836470213E+01, 0.0),
                                                                    vec3(3.082778705023476E-03*365, 2.516987371233560E-04*365 ,0.0 ),
                                                                    0.655e-8 );
+
         vector<CelestialBody> &bodies = fullBodySystem.bodies();
+
 
         for(int i = 0; i < bodies.size(); i++)
         {CelestialBody &body = bodies[i];}
 
-        verlet integrateVerlet(dt);
+        ofstream ofile;
+        ofile.open("FullSolarsystem");
+        Euler integrateVerlet(dt);
         for(int timestep = 0; timestep< NumTimeSteps; timestep++)
         {
-
+            //cout << mercury.position << endl;
             integrateVerlet.integrateOneStep(fullBodySystem);
-            fullBodySystem.writeToFile("AllDaBodies.xyz");
+
+           ofile << mercury.position.x() << " " << mercury.position.y() << " ";
+           ofile << venus.position.x() << " " << venus.position.y() << " ";
+           ofile << earth.position.x() << " " << earth.position.y() << " ";
+           ofile << mars.position.x() << " " << mars.position.y() << " ";
+           ofile << jupiter.position.x() << " " << jupiter.position.y() << " ";
+           ofile << saturn.position.x() << " " << saturn.position.y() << " ";
+           ofile << uranus.position.x() << " " << uranus.position.y() << " ";
+           ofile << neptun.position.x() << " " << neptun.position.y() << " ";
+           ofile << pluto.position.x() << " " << pluto.position.y() << endl;
+            //fullBodySystem.writeToFile("penis.xyz");
         }
+        ofile.close();
 
 }
 void FullSolarSystem::MercurPerihelion()

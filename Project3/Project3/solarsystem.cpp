@@ -8,7 +8,9 @@ using namespace std;
 solarsystem::solarsystem(){
     double m_kineticEnergy(0);
     double m_potentialEnergy(0);
+
     m_bodies.reserve(1000);
+
 
  }
 
@@ -40,13 +42,13 @@ void solarsystem::CalculateForcesandEnergy()
             double dr = deltaRVector.length();
 
             // Calculate the force and potential energy here
-            double G(4*M_PI*M_PI); //AU^3/yr^2
-            vec3 force = G * body1.mass * body2.mass/(dr*dr) * deltaRVector.normalized();
-            body1.force -= force;
-            body2.force += force;
+            double G(4*M_PI*M_PI); //AU^3/(kg*yr^2)
+            vec3 force = -G * body1.mass * body2.mass/(dr*dr) * deltaRVector.normalized();
+            body1.force += force;
+            body2.force -= force;
 
             m_potentialEnergy -= G*body1.mass*body2.mass/dr;
-            //m_angularMomentum += body2.mass*deltaRVector.cross(body2.velocity);
+
         }
 
         m_kineticEnergy += 0.5*body1.mass*body1.velocity.lengthSquared();
@@ -97,9 +99,11 @@ double solarsystem::totalEnergy() const
 { return m_kineticEnergy + m_potentialEnergy;}
 
 double solarsystem::potentialEnergy() const
-{return m_potentialEnergy;}
+{   //cout << m_potentialEnergy << " ";
+    return m_potentialEnergy;}
 double solarsystem::kineticEnergy() const
-{return m_kineticEnergy;}
+{   //cout << m_kineticEnergy << " ";
+    return m_kineticEnergy;}
 
 void solarsystem::writeToFile(string filename)
 {
@@ -139,11 +143,42 @@ vec3 solarsystem::angularmomentum()
         CelestialBody &body = m_bodies[i];
         m_angularMomentum += body.mass*(body.position - sun.position).cross(body.velocity);
     }
-    //cout << m_angularMomentum << endl;
+    //cout << m_angularMomentum.length() << endl;
     return m_angularMomentum;
 }
 
 vector<CelestialBody> &solarsystem::bodies()
 {
     return m_bodies;
+}
+
+vec3 solarsystem::FindMassCenter(){
+    m_massCenter.zeros();
+    M = 0.0;
+    MR.zeros();
+
+    for(int i = 0; i < m_bodies.size(); i++)
+    {
+    CelestialBody &body = m_bodies[i];
+    M += body.mass;
+
+    MR += body.mass*body.position;
+
+    }
+    m_massCenter = MR/M;
+    return m_massCenter;
+
+}
+
+vec3 solarsystem::momentum()
+{   m_momentum.zeros();
+    //v_sun.zeros();
+
+    for(int i = 0; i < m_bodies.size(); i ++)
+    {
+        CelestialBody &body = m_bodies[i];
+        m_momentum += body.mass*body.velocity;
+    }
+
+    return -1*m_momentum;
 }
