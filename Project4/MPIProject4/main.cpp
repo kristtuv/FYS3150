@@ -21,11 +21,12 @@
 #include <random>
 #include <armadillo>
 #include <string>
+#include <mpi.h>
 using namespace  std;
 using namespace arma;
 // output file
 ofstream ofile;
-ofstream yofile;
+
 
 // inline function for PeriodicBoundary boundary conditions
 inline int PeriodicBoundary(int i, int limit, int add) {
@@ -34,75 +35,100 @@ inline int PeriodicBoundary(int i, int limit, int add) {
 // Function to initialise energy and magnetization
 void InitializeLattice(int, mat &, double&, double&, string);
 // The metropolis algorithm including the loop over Monte Carlo cycles
-void MetropolisSampling(int, int, double, vec &, string, int &, vec &, bool);
+void MetropolisSampling(int, int, int, double, vec &, string, int &, vec &, bool);
 
 
 // prints to file the results of the calculations
 void WriteResultstoFile(int, int, double, vec, int, bool);
 
-//Writing Number of Energies to file for making probability-plot
-void WriteNumberOfEnergies(double, vec);
-
 // Main program begins here
 
 int main(int argc, char* argv[])
 {
-    string filename, InitializeMatrix;
-    int NSpins, MCcycles;
-    double InitialTemp, FinalTemp, TempStep;
-    if (argc <= 6) {
-        cout << "Bad Usage: " << argv[0] <<
-                " read output file, Number of spins, MC cycles, initial and final temperature, temperatur step and ('random' or 'ground')" << endl;
-        exit(1);
-    }
-    else {
-        filename=argv[1];
-        NSpins = atoi(argv[2]);
-        MCcycles = atoi(argv[3]);
-        InitialTemp = atof(argv[4]);
-        FinalTemp = atof(argv[5]);
-        TempStep = atof(argv[6]);
-        InitializeMatrix = argv[7];
-    }
-    // Declare new file name and add lattice size to file name
-    string fileout = filename;
-    string argument = to_string(NSpins);
-    string MonteCarloCycles = to_string(MCcycles);
-    string CountFilename = "CountingEnergies";
-    fileout.append(argument);
-    fileout.append(InitializeMatrix);
-    CountFilename.append(MonteCarloCycles);
+    string outfilename, InitializeMatrix;
+    int mcs, my_rank, numprocs;
 
-    ofile.open(fileout, std::ios_base::app);
-    yofile.open(CountFilename);
-    bool SteadyState = true;
+    double InitialTemp, FinalTemp, TempStep;
+
+
+
+    //  MPI initializations
+     MPI_Init (&argc, &argv);
+     MPI_Comm_size (MPI_COMM_WORLD, &numprocs);
+     MPI_Comm_rank (MPI_COMM_WORLD, &my_rank);
+     if (my_rank == 0 && argc <= 1) {
+       cout << "Bad Usage: " << argv[0] <<
+         " read output file" << endl;
+       exit(1);
+     }
+     if (my_rank == 0 && argc > 1) {
+       outfilename=argv[1];
+       ofile.open(outfilename);
+     }
+     vector<int> L = {40, 60, 100, 140}; mcs = 10000000;
+     //InitialTemp = 2.0; FinalTemp = 2.3; TempStep =0.02;
+       InitialTemp = 2.25; FinalTemp = 2.3; TempStep =0.003;
+     /*
+     Determine number of intervall which are used by all processes
+     myloop_begin gives the starting point on process my_rank
+     myloop_end gives the end point for summation on process my_rank
+     */
+     int no_intervalls = mcs/numprocs;
+     int myloop_begin = my_rank*no_intervalls + 1;
+     int myloop_end = (my_rank+1)*no_intervalls;
+     if ( (my_rank == numprocs-1) &&( myloop_end < mcs) ) myloop_end = mcs;
+
+     // broadcast to all nodes common variables
+    // MPI_Bcast (&NSpins, 1, MPI_INT, 0, MPI_COMM_WORLD);
+     MPI_Bcast (&InitialTemp, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+     MPI_Bcast (&FinalTemp, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+     MPI_Bcast (&TempStep, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 
     // Start Monte Carlo sampling by looping over the selcted Temperatures
 
-    for (double Temperature = InitialTemp; Temperature <= FinalTemp; Temperature+=TempStep){
-        vec ExpectationValues = zeros<mat>(5);
-        vec NumberOfEnergies;
-        int AcceptedConfigurations;
-        // Start Monte Carlo computation and get expectation values
-        MetropolisSampling(NSpins, MCcycles, Temperature, ExpectationValues, InitializeMatrix,\
-                           AcceptedConfigurations, NumberOfEnergies, SteadyState);
-        //
+    for(int NSpins:L){
+        MPI_Bcast (&NSpins, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        cout << "Now running: " << NSpins << endl;
+        for (double Temperature = InitialTemp; Temperature <= FinalTemp; Temperature+=TempStep){
+            bool Steadystate = true;
+            vec ExpectationValues = zeros<mat>(5);
+            vec TotalExpectationValues = zeros<mat>(5);
+            vec NumberOfEnergies;
+            int AcceptedConfigurations;
+            // Start Monte Carlo computation and get expectation values, accepted confiugrations, number of energies and if all should start at
+            //steady state bool = true
+            MetropolisSampling(NSpins, myloop_begin, myloop_end, Temperature, ExpectationValues, InitializeMatrix,\
+                               AcceptedConfigurations, NumberOfEnergies, true);
 
-        WriteResultstoFile(NSpins, MCcycles, Temperature, ExpectationValues, AcceptedConfigurations, SteadyState);
-        //WriteNumberOfEnergies(Temperature, NumberOfEnergies);
+            //cout << Temperature << " " << ExpectationValues << endl;
+
+            //cout << ExpectationValues << endl;
+
+            for(int i = 0; i < 5; i++){
+                MPI_Reduce(&ExpectationValues(i), &TotalExpectationValues(i), 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+            }
+            //cout << TotalExpectationValues << endl;
+            if(my_rank == 0){
+            WriteResultstoFile(NSpins, mcs, Temperature, TotalExpectationValues, AcceptedConfigurations, true);
+
+            }
+
+
+            //WriteNumberOfEnergies(Temperature, NumberOfEnergies);
+        }
     }
-    ofile.close();
-    yofile.close();
+
     // close output file
+    MPI_Finalize();
     return 0;
 }
 
 
 
 // The Monte Carlo part with the Metropolis algo with sweeps over the lattice
-void MetropolisSampling(int NSpins, int MCcycles, double Temperature, vec &ExpectationValues, string InitializeMatrix,\
-                        int &AcceptedConfigurations, vec &NumberOfEnergies, bool SteadyState = false)
+void MetropolisSampling(int NSpins, int myloop_begin, int myloop_end, double Temperature, vec &ExpectationValues, string InitializeMatrix,\
+                        int &AcceptedConfigurations, vec &NumberOfEnergies, bool SteadyState = true)
 {
     // Initialize the seed and call the Mersienne algo
     std::random_device rd;
@@ -118,12 +144,12 @@ void MetropolisSampling(int NSpins, int MCcycles, double Temperature, vec &Expec
     double Energy = 0.;     double MagneticMoment = 0.;
 
     // initialize array for expectation values
-    InitializeLattice(NSpins, SpinMatrix, Energy, MagneticMoment, InitializeMatrix);
+    InitializeLattice(NSpins, SpinMatrix, Energy, MagneticMoment, "random");
 
     // setup array for possible energy changes
     //There is only five possible energies for 2dim ising
     vec EnergyDifference = zeros<mat>(17);
-    NumberOfEnergies = zeros<mat>(2*2*NSpins*NSpins/4 + 1);
+    //NumberOfEnergies = zeros<mat>(2*2*NSpins*NSpins/4 + 1);
 
 
     //counting number of accepted configurations
@@ -135,7 +161,7 @@ void MetropolisSampling(int NSpins, int MCcycles, double Temperature, vec &Expec
     }
 
     // Start Monte Carlo cycles
-    for (int cycles = 1; cycles <= MCcycles; cycles++){
+    for (int cycles = myloop_begin; cycles <= myloop_end; cycles++) {
         // The sweep over the lattice, looping over all spin sites
         for(int x =0; x < NSpins; x++) {
             for (int y= 0; y < NSpins; y++){
@@ -177,12 +203,12 @@ void MetropolisSampling(int NSpins, int MCcycles, double Temperature, vec &Expec
         }
         // update expectation values  for local node
 
-        NumberOfEnergies((Energy + 2*NSpins*NSpins)/4) +=1;
+        //NumberOfEnergies((Energy + 2*NSpins*NSpins)/4) +=1;
 
         //Update expectationvalues. With or without Steadystate.
         if(SteadyState){
             //cout << "Steady state is reached" << endl;
-            if (cycles >= MCcycles*0.1){
+            if (cycles >= myloop_begin + (myloop_end - myloop_begin)*0.1){
 
                 ExpectationValues(0) += Energy;
                 ExpectationValues(1) += Energy*Energy;
@@ -241,7 +267,6 @@ void InitializeLattice(int NSpins, mat &SpinMatrix,  double& Energy, double& Mag
 
 void WriteResultstoFile(int NSpins, int MCcycles, double temperature, vec ExpectationValues, int AcceptedConfigurations, bool Steadystate)
 {   if(Steadystate) MCcycles = 0.9*MCcycles;
-
     double norm = 1.0/((double) (MCcycles));  // divided by  number of cycles
     double E_ExpectationValues = ExpectationValues(0)*norm;
     double E2_ExpectationValues = ExpectationValues(1)*norm;
@@ -256,6 +281,7 @@ void WriteResultstoFile(int NSpins, int MCcycles, double temperature, vec Expect
     ofile << setiosflags(ios::showpoint | ios::uppercase);
     //MCc, T, <E>, Cv, <M>, Xi, <|M|>, AcceptedConfigurations
     ofile << setw(15) << setprecision(8) << MCcycles;
+    ofile << setw(15) << setprecision(8) << NSpins;
     ofile << setw(15) << setprecision(8) << temperature;
     ofile << setw(15) << setprecision(8) << E_ExpectationValues/NSpins/NSpins;
     ofile << setw(15) << setprecision(8) << Evariance/temperature/temperature;
@@ -266,17 +292,6 @@ void WriteResultstoFile(int NSpins, int MCcycles, double temperature, vec Expect
 
 } // end output function
 
-void WriteNumberOfEnergies(double Temperatur, vec NumberOfEnergies){
 
-
-    for(int i = 0; i < NumberOfEnergies.size(); i++){
-    yofile << setiosflags(ios::showpoint);
-    yofile << setw(15) <<setprecision(8) << Temperatur;
-    yofile << resetiosflags(ios::showpoint);
-    yofile << setw(15) << NumberOfEnergies(i) << endl;}
-
-
-
-}
 
 
