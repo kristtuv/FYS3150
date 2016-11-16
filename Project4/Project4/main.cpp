@@ -5,12 +5,9 @@
    Boltzmann's constant = 1, temperature has thus dimension energy
    Metropolis aolgorithm  is used as well as periodic boundary conditions.
    The code needs an output file on the command line and the variables mcs, nspins,
-   initial temp, final temp and temp step.
-   Run as
-   ./executable Outputfile numberof spins number of MC cycles initial temp final temp tempstep
-   ./test.x Lattice 100 10000000 2.1 2.4 0.01
-   Compile and link as
-   c++ -O3 -std=c++11 -Rpass=loop-vectorize -o Ising.x IsingModel.cpp -larmadillo
+   initial temp, final temp, temp step and "ground" or "random" to set the initial states.
+
+
 */
 
 #include <cmath>
@@ -21,6 +18,7 @@
 #include <random>
 #include <armadillo>
 #include <string>
+#include <time.h>
 using namespace  std;
 using namespace arma;
 // output file
@@ -33,6 +31,7 @@ inline int PeriodicBoundary(int i, int limit, int add) {
 }
 // Function to initialise energy and magnetization
 void InitializeLattice(int, mat &, double&, double&, string);
+
 // The metropolis algorithm including the loop over Monte Carlo cycles
 void MetropolisSampling(int, int, double, vec &, string, int &, vec &, bool);
 
@@ -84,13 +83,15 @@ int main(int argc, char* argv[])
         vec ExpectationValues = zeros<mat>(5);
         vec NumberOfEnergies;
         int AcceptedConfigurations;
-        // Start Monte Carlo computation and get expectation values
+        // Start Monte Carlo computation and get expectation values,for steady state set Steadystate=true
         MetropolisSampling(NSpins, MCcycles, Temperature, ExpectationValues, InitializeMatrix,\
                            AcceptedConfigurations, NumberOfEnergies, SteadyState);
-        //
 
-        WriteResultstoFile(NSpins, MCcycles, Temperature, ExpectationValues, AcceptedConfigurations, SteadyState);
+        //WriteResultstoFile(NSpins, MCcycles, Temperature, ExpectationValues, AcceptedConfigurations, SteadyState)
+        WriteResultstoFile(NSpins, MCcycles, Temperature, ExpectationValues, AcceptedConfigurations, true);
+
         //WriteNumberOfEnergies(Temperature, NumberOfEnergies);
+        void WriteNumberOfEnergies(Temperature, NumberOfEnergies);
     }
     ofile.close();
     yofile.close();
@@ -104,7 +105,7 @@ int main(int argc, char* argv[])
 void MetropolisSampling(int NSpins, int MCcycles, double Temperature, vec &ExpectationValues, string InitializeMatrix,\
                         int &AcceptedConfigurations, vec &NumberOfEnergies, bool SteadyState = false)
 {
-    // Initialize the seed and call the Mersienne algo
+    // Initialize the seed and call the Mersenne algorithm
     std::random_device rd;
     std::mt19937_64 gen(rd());
 
@@ -121,8 +122,10 @@ void MetropolisSampling(int NSpins, int MCcycles, double Temperature, vec &Expec
     InitializeLattice(NSpins, SpinMatrix, Energy, MagneticMoment, InitializeMatrix);
 
     // setup array for possible energy changes
-    //There is only five possible energies for 2dim ising
+    //There is only five possible energies for 2dim ising model
     vec EnergyDifference = zeros<mat>(17);
+
+    //Countning energies
     NumberOfEnergies = zeros<mat>(2*2*NSpins*NSpins/4 + 1);
 
 
@@ -175,8 +178,7 @@ void MetropolisSampling(int NSpins, int MCcycles, double Temperature, vec &Expec
                 }
             }
         }
-        // update expectation values  for local node
-
+        // update energycounter
         NumberOfEnergies((Energy + 2*NSpins*NSpins)/4) +=1;
 
         //Update expectationvalues. With or without Steadystate.
@@ -213,6 +215,7 @@ void InitializeLattice(int NSpins, mat &SpinMatrix,  double& Energy, double& Mag
     // Set up the uniform distribution for x \in [[0, 1]
     std::uniform_real_distribution<double> RandomNumberGenerator(0.0,1.0);
     // setup spin matrix and initial magnetization
+    //If InitializeMatrix = "random" produces a random initial state, "ground" produces the groundstate. Arguments entered on commandline
     for(int x =0; x < NSpins; x++) {
         for (int y= 0; y < NSpins; y++)
         {
@@ -240,9 +243,10 @@ void InitializeLattice(int NSpins, mat &SpinMatrix,  double& Energy, double& Mag
 
 
 void WriteResultstoFile(int NSpins, int MCcycles, double temperature, vec ExpectationValues, int AcceptedConfigurations, bool Steadystate)
-{   if(Steadystate) MCcycles = 0.9*MCcycles;
+{   //Removing 10 percent of the cycles of steady state
+    if(Steadystate) MCcycles = 0.9*MCcycles;
 
-    double norm = 1.0/((double) (MCcycles));  // divided by  number of cycles
+    double norm = 1.0/((double) (MCcycles));  // divided by  number of cycles to normalize
     double E_ExpectationValues = ExpectationValues(0)*norm;
     double E2_ExpectationValues = ExpectationValues(1)*norm;
     double M_ExpectationValues = ExpectationValues(2)*norm;
@@ -268,7 +272,7 @@ void WriteResultstoFile(int NSpins, int MCcycles, double temperature, vec Expect
 
 void WriteNumberOfEnergies(double Temperatur, vec NumberOfEnergies){
 
-
+    //Write number of energies to file
     for(int i = 0; i < NumberOfEnergies.size(); i++){
     yofile << setiosflags(ios::showpoint);
     yofile << setw(15) <<setprecision(8) << Temperatur;

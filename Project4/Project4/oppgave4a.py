@@ -10,7 +10,7 @@ J = 1.0
 
 exponent = beta*J
 
-E = (-8*exp(8) + 8*exp(-8))/(exp(8)+ exp(-8)+12)
+E = (-8*exp(8) + 8*exp(-8))/(exp(8)+ exp(-8)+ 6)
 
 sigma2E = 64*(6*exp(8) + 6*exp(-8) + 4)/((exp(8) + exp(-8) + 6)**2)
 
@@ -29,14 +29,13 @@ Results from c++ program with 10^8 mtc:
 (-1.9959789 ,0.032108924 ,0.0039958766 ,0.99866270)
 """
 
+T = [1.0, 2.4]
+deltaE = [-8, -4, 0, 4, 8]
+
+for t in T:
+	for E in deltaE:
+		w = exp(-1./t * E)
+		print ("T = %f  deltaE = %f  Probability= %f " % (t, E, w))
 
 
-
-
-
-
-
-
-b = linspace(-800, 800, 401)
-print b[47]
 
