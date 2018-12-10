@@ -1,0 +1,11 @@
+\contentsline {section}{\numberline {1}Abstract}{3}{section.1}
+\contentsline {section}{\numberline {2}Introduction}{3}{section.2}
+\contentsline {section}{\numberline {3}Theory and methods}{4}{section.3}
+\contentsline {subsection}{\numberline {3.1}Mathematical theory}{4}{subsection.3.1}
+\contentsline {subsubsection}{\numberline {3.1.1}Analytic results}{5}{subsubsection.3.1.1}
+\contentsline {subsubsection}{\numberline {3.1.2}Phase Transitions}{7}{subsubsection.3.1.2}
+\contentsline {subsection}{\numberline {3.2}Algorithms}{7}{subsection.3.2}
+\contentsline {subsubsection}{\numberline {3.2.1}The Metropolis Algorithm and the two diminsional Ising model}{7}{subsubsection.3.2.1}
+\contentsline {section}{\numberline {4}Results}{10}{section.4}
+\contentsline {paragraph}{Finding the critical temperature}{16}{section*.8}
+\contentsline {section}{\numberline {5}Conclusion}{19}{section.5}

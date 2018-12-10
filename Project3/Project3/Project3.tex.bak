@@ -22,7 +22,7 @@ Github repository: https://github.com/kristtuv/FYS3150/tree/master/Project3\\
 
 \section*{Abstract}
 We make a model of the solarsystem using Newton's law of gravity and the velocity verlet algorithm.\\
-We find that Newtons laws holds up to scrutiny and compared to the Euler forward algorithm, the verlocity verlet algorithm is very precise.
+We find that Newtons laws holds up to scrutiny and compared to the Euler forward algorithm, the velocity verlet algorithm is very precise.
 \section*{Introduction}
 The aim of this project is to develop a code for simulating the solar system using the velocity Verlet
 algorithm and verifying Newtons laws and the laws of conservation. Newtonian force will be used in the calculations, but we will also take a closer look at the perihelion precession of Mercury, comparing the the calculations of Newtonian force and general relativity.\\

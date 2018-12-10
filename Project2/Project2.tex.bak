@@ -25,9 +25,10 @@
 
 \section*{Abstract}
 In this project I have solved the schroedinger equation for one and two electrons by using the jacobi method.
-	
-
-Link to github:
+I found that using a big enough distance between the electrons is imperative for getting the right results, and that the strength of the potential has a big impact on the shape and probability of the wavefunction.\\
+\\
+\\	
+Link to github: https://github.com/kristtuv/FYS3150/tree/master/Project2
 \section*{Introduction}
 The aim of this project is to solve Schroedinger's equation for two
 electrons in a three-dimensional harmonic oscillator well with and
